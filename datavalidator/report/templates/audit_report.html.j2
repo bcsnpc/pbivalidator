@@ -1,0 +1,152 @@
+﻿<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Audit Report</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 20px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
+    .sev-HIGH { border-left: 6px solid #d33; }
+    .sev-MED { border-left: 6px solid #e6a400; }
+    .sev-LOW { border-left: 6px solid #2a7; }
+    .sev-INFO { border-left: 6px solid #6aa0ff; }
+    pre { background: #f6f6f6; padding: 10px; border-radius: 8px; overflow: auto; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    details { margin: 8px 0; }
+  </style>
+</head>
+<body>
+
+<h1>Audit Report</h1>
+<p><b>Project:</b> {{ inventory.project.name if inventory.project else "?" }} | <b>Root:</b> {{ (inventory.project.rootDir if inventory.project and inventory.project.rootDir is defined else inventory.rootDir) }}</p>
+
+<h2>Model</h2>
+<div class="card">
+  <p><b>Tables:</b> {{ inventory.model.tablesCount if inventory.model else "?" }}</p>
+  <p><b>Relationships:</b> {{ (inventory.model.relationships.count if inventory.model and inventory.model.relationships else "?") }}</p>
+</div>
+
+<h2>Power Query</h2>
+<div class="card">
+  <p><b>Extracted PQ items:</b> {{ inventory.powerQuery.count if inventory.powerQuery else "0" }}</p>
+  <p><b>Incremental readiness heuristic:</b>
+    {% if signals.incremental and signals.incremental.hasRangeParamsOrRefs %} Detected {% else %} Not detected {% endif %}
+  </p>
+  <p><b>Param names:</b> {{ (signals.parameters.names | join(", ")) if signals.parameters and signals.parameters.names else "None" }}</p>
+  <p><b>Hardcoded source hits:</b> {{ signals.hardcoding.count if signals.hardcoding else 0 }}</p>
+
+  <details>
+    <summary><b>Top folding breakers</b></summary>
+    <ul>
+      {% for b in (signals.powerQuery.topFoldingBreakers if signals.powerQuery and signals.powerQuery.topFoldingBreakers else []) %}
+        <li>{{ b.pattern }} ({{ b.count }})</li>
+      {% endfor %}
+    </ul>
+  </details>
+
+  <details>
+    <summary><b>Source parameterization coverage</b></summary>
+    <ul>
+      {% for s in (signals.hardcoding.sourceCoverage if signals.hardcoding and signals.hardcoding.sourceCoverage else [])[:30] %}
+        <li>{{ s.table }} - {{ s.status }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+
+  <details>
+    <summary><b>Extracted M snippets (sample)</b></summary>
+    {% for p in (inventory.powerQuery.queries if inventory.powerQuery and inventory.powerQuery.queries else [])[:6] %}
+      <div style="margin-top:10px">
+        <div><b>{{ p.table }}</b></div>
+        <div><code>{{ p.path }}</code></div>
+        <div><i>nativeQuery={{ p.isNativeQuery }}, containsSQL={{ p.containsSQL }}, confidence={{ p.confidence }}</i></div>
+        <pre>{{ p.mSnippet }}</pre>
+      </div>
+    {% endfor %}
+  </details>
+</div>
+
+<h2>Naming Convention</h2>
+<div class="card">
+  <p><b>Dominant table style:</b> {{ signals.naming.dominantTableStyle if signals.naming else "Unknown" }}</p>
+  <p><b>Distribution:</b> {{ signals.naming.tableStyles if signals.naming else {} }}</p>
+  <details>
+    <summary><b>Outlier table names</b></summary>
+    <ul>
+      {% for t in (signals.naming.outlierTables if signals.naming and signals.naming.outlierTables else []) %}
+        <li>{{ t }}</li>
+      {% endfor %}
+    </ul>
+  </details>
+</div>
+
+<h2>Findings (all)</h2>
+{% for f in findings %}
+  <div class="card sev-{{ f.severity }}">
+    <div><b>[{{ f.severity }}]</b> {{ f.id }} - {{ f.title }}</div>
+    <p>{{ f.message }}</p>
+    <p><b>Recommendation:</b> {{ f.recommendation }}</p>
+    {% if f.evidence %}
+    <details>
+      <summary><b>Evidence</b></summary>
+      <pre>{{ f.evidence | tojson(indent=2) }}</pre>
+    </details>
+    {% endif %}
+  </div>
+{% endfor %}
+
+{% if signals.ai and signals.ai.powerQuery %}
+  {% set ai = signals.ai.powerQuery %}
+  <h2>AI Review</h2>
+  <div class="card">
+    <p><b>Summary:</b> {{ ai.summary }}</p>
+
+    <details open>
+      <summary><b>AI Findings</b></summary>
+      <ol>
+        {% for f in (ai.findings if ai.findings is defined else []) %}
+          <li>
+            <b>[{{ f.severity }}]</b> {{ f.title }}<br/>
+            <i>Why it matters:</i> {{ f.why_it_matters }}<br/>
+            <i>Evidence:</i>
+            <pre>{{ f.evidence | tojson(indent=2) }}</pre>
+            <i>Fix steps:</i>
+            <ul>
+              {% for s in (f.fix_steps if f.fix_steps is defined else []) %}
+                <li>{{ s }}</li>
+              {% endfor %}
+            </ul>
+          </li>
+        {% endfor %}
+      </ol>
+    </details>
+
+    <details>
+      <summary><b>Quick wins</b></summary>
+      <ul>
+        {% for w in (ai.quick_wins if ai.quick_wins is defined else []) %}
+          <li>{{ w }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+
+    <details>
+      <summary><b>Questions for dev</b></summary>
+      <ul>
+        {% for q in (ai.questions_for_dev if ai.questions_for_dev is defined else []) %}
+          <li>{{ q }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+
+    {% if ai.raw is defined %}
+      <details>
+        <summary><b>Raw AI output</b></summary>
+        <pre>{{ ai.raw }}</pre>
+      </details>
+    {% endif %}
+  </div>
+{% endif %}
+
+</body>
+</html>

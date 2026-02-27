@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Audit Report</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; }
+    h1 { margin-bottom: 8px; }
+    .card { border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px; margin: 12px 0; }
+    .pill { display:inline-block; padding: 3px 10px; border-radius: 999px; border:1px solid #ddd; margin-right:6px; font-size: 12px; }
+    .sev-HIGH { border-color:#ffb3b3; }
+    .sev-MED { border-color:#ffd8a8; }
+    .sev-LOW { border-color:#c3f3c3; }
+    pre { background:#f7f7f7; padding:12px; border-radius:10px; overflow:auto; }
+    details summary { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Audit Report</h1>
+  <div>Project: <b>{{ inventory.project.name }}</b> | Root: <code>{{ inventory.project.root }}</code></div>
+
+  <div class="card">
+    <h2>Executive Summary</h2>
+    {% set high = findings | selectattr("severity","equalto","HIGH") | list | length %}
+    {% set med  = findings | selectattr("severity","equalto","MED")  | list | length %}
+    {% set low  = findings | selectattr("severity","equalto","LOW")  | list | length %}
+    {% set info = findings | selectattr("severity","equalto","INFO") | list | length %}
+    <span class="pill">HIGH: {{ high }}</span>
+    <span class="pill">MED: {{ med }}</span>
+    <span class="pill">LOW: {{ low }}</span>
+    <span class="pill">INFO: {{ info }}</span>
+  </div>
+
+  <div class="card">
+    <h2>Model</h2>
+    <div><b>Tables:</b> {{ inventory.model.tablesCount }}</div>
+    <div><b>Relationships:</b> {{ (inventory.model.relationships or {}).get("count", 0) }}</div>
+
+    <details>
+      <summary><b>Table snapshot</b></summary>
+      <ul>
+        {% for t in (inventory.model.tables or []) %}
+          <li>{{ t.name }} — {{ t.columnsCount }} cols, {{ t.measuresCount }} measures</li>
+        {% endfor %}
+      </ul>
+    </details>
+
+    <details>
+      <summary><b>Relationships detail</b> (if extracted)</summary>
+      {% set rel_list = ((inventory.model.relationships or {}).get("relationships") or []) %}
+      {% if rel_list|length == 0 %}
+        <div>No relationship list extracted yet (count only).</div>
+      {% else %}
+        <ul>
+          {% for r in rel_list[:20] %}
+            <li>{{ r.fromTable }}.{{ r.fromColumn }} → {{ r.toTable }}.{{ r.toColumn }} ({{ r.crossFilteringBehavior }})</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Power Query</h2>
+    <div><b>Extracted queries/partitions:</b> {{ inventory.powerQuery.count }}</div>
+    <div><b>Incremental readiness:</b>
+      {% if (signals.powerQuery.flags or {}).get("incrementalDetected") %}
+        ✅ Detected
+      {% else %}
+        ❌ Not detected
+      {% endif %}
+    </div>
+
+    <details>
+      <summary><b>Top Folding Breakers</b></summary>
+      {% set breakers = (signals.powerQuery.topFoldingBreakers or []) %}
+      {% if breakers|length == 0 %}
+        <div>No folding breakers detected (or not extracted).</div>
+      {% else %}
+        <ul>
+          {% for b in breakers %}
+            <li>{{ b }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </details>
+
+    <details>
+      <summary><b>Sample extracted M snippets</b></summary>
+      {% for q in (inventory.powerQuery.queries or [])[:8] %}
+        <div style="margin-top:10px;"><b>{{ q.table }}</b> — <code>{{ q.path }}</code></div>
+        <pre>{{ q.mSnippet }}</pre>
+      {% endfor %}
+    </details>
+  </div>
+
+  {% if signals.ai and signals.ai.powerQuery %}
+  <div class="card">
+    <h2>AI Review (Power Query)</h2>
+
+    {% set ai = signals.ai.powerQuery %}
+    {% if ai.raw %}
+      <div><b>Raw AI Output</b></div>
+      <pre>{{ ai.raw }}</pre>
+    {% else %}
+      <div><b>Summary</b></div>
+      <p>{{ ai.summary }}</p>
+
+      <details>
+        <summary><b>Top Risks</b></summary>
+        <ul>
+          {% for r in (ai.topRisks or []) %}
+            <li><b>{{ r.risk }}</b> — {{ r.whyItMatters }}<br/><code>{{ r.evidence }}</code></li>
+          {% endfor %}
+        </ul>
+      </details>
+
+      <details>
+        <summary><b>Recommended Fixes</b></summary>
+        {% for f in (ai.recommendedFixes or []) %}
+          <div style="margin-top:10px;"><b>{{ f.title }}</b> ({{ f.appliesTo }})</div>
+          <ul>
+            {% for s in (f.steps or []) %}
+              <li>{{ s }}</li>
+            {% endfor %}
+          </ul>
+          <div><i>Expected impact:</i> {{ f.expectedImpact }}</div>
+        {% endfor %}
+      </details>
+
+      <details>
+        <summary><b>QA Notes (copy/paste to dev)</b></summary>
+        <ul>
+          {% for n in (ai.qaNotes or []) %}
+            <li>{{ n }}</li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Findings</h2>
+    {% if findings|length == 0 %}
+      <div>No findings found.</div>
+    {% else %}
+      {% for f in findings %}
+        <div class="card sev-{{ f.severity }}">
+          <div><b>[{{ f.severity }}]</b> {{ f.id }} — {{ f.title }}</div>
+          <div style="margin-top:6px;">{{ f.message }}</div>
+          {% if f.recommendation %}
+            <div style="margin-top:8px;"><b>Recommendation:</b> {{ f.recommendation }}</div>
+          {% endif %}
+          {% if f.evidence %}
+            <details>
+              <summary><b>Evidence</b></summary>
+              <pre>{{ f.evidence | tojson(indent=2) }}</pre>
+            </details>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+</body>
+</html>
