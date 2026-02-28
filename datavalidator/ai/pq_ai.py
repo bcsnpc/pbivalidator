@@ -23,6 +23,7 @@ def generate_pq_ai(signals: Dict[str, Any], findings: List[Dict[str, Any]] | Non
     report = signals.get("report") or {}
     hardcoding = signals.get("hardcoding") or {}
     naming = signals.get("naming") or {}
+    sources = signals.get("sources") or {}
     incremental = signals.get("incremental") or {}
     params = signals.get("parameters") or {}
     findings = findings or []
@@ -48,6 +49,7 @@ incremental={incremental}
 parameters={params}
 hardcoding={hardcoding}
 naming={naming}
+sources={sources}
 
 RULE_BASED_FINDINGS={findings}
 

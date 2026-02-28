@@ -31,6 +31,18 @@ _SOURCE_PARAM_HINT = re.compile(
     r"\b(Sql\.Database|Databricks\.Catalogs|Web\.Contents|File\.Contents|Odbc\.DataSource)\s*\(\s*[A-Za-z_][A-Za-z0-9_]*",
     re.IGNORECASE,
 )
+_SOURCE_PATTERNS = [
+    (re.compile(r"\bSql\.Database\b", re.IGNORECASE), "SQL Server"),
+    (re.compile(r"\bDatabricks\.Catalogs\b", re.IGNORECASE), "Databricks"),
+    (re.compile(r"\bPowerBI\.Dataflows\b", re.IGNORECASE), "Power BI Dataflows"),
+    (re.compile(r"\bWeb\.Contents\b", re.IGNORECASE), "Web/API"),
+    (re.compile(r"\bFile\.Contents\b", re.IGNORECASE), "File"),
+    (re.compile(r"\bOdbc\.(DataSource|Query)\b", re.IGNORECASE), "ODBC"),
+    (re.compile(r"\bOleDb\.DataSource\b", re.IGNORECASE), "OLE DB"),
+    (re.compile(r"\bSnowflake\.Databases\b", re.IGNORECASE), "Snowflake"),
+    (re.compile(r"\bGoogleBigQuery\.Database\b", re.IGNORECASE), "BigQuery"),
+    (re.compile(r"\bSapHana\.Database\b", re.IGNORECASE), "SAP HANA"),
+]
 
 
 def _name_style(name: str) -> str:
@@ -94,6 +106,8 @@ def build_signals(inventory: Dict[str, Any]) -> Dict[str, Any]:
     # Hard-coded vs parameterized source hints
     hardcoded_hits = []
     source_coverage = []
+    source_counts: Dict[str, int] = {}
+    sources_by_table = []
     folding_by_table = []
     breaker_counts: Dict[str, int] = {}
 
@@ -130,6 +144,21 @@ def build_signals(inventory: Dict[str, Any]) -> Dict[str, Any]:
         if not matched_literal and not generic_host_hit and not is_param_source:
             status = "unknown"
         source_coverage.append({"table": table, "path": path, "status": status})
+
+        matched_sources = []
+        for rx, source_name in _SOURCE_PATTERNS:
+            if rx.search(snip):
+                matched_sources.append(source_name)
+                source_counts[source_name] = source_counts.get(source_name, 0) + 1
+        if bool(it.get("isNativeQuery")):
+            matched_sources.append("Native Query")
+            source_counts["Native Query"] = source_counts.get("Native Query", 0) + 1
+
+        normalized_sources = sorted(set(matched_sources)) or ["Unknown"]
+        for src in normalized_sources:
+            if src == "Unknown":
+                source_counts[src] = source_counts.get(src, 0) + 1
+        sources_by_table.append({"table": table, "path": path, "sources": normalized_sources})
 
         # Folding heuristics
         breakers = []
@@ -186,6 +215,16 @@ def build_signals(inventory: Dict[str, Any]) -> Dict[str, Any]:
         "hits": hardcoded_hits[:25],
         "count": len(hardcoded_hits),
         "sourceCoverage": source_coverage,
+    }
+    connector_rows = [
+        {"name": k, "count": v}
+        for k, v in sorted(source_counts.items(), key=lambda kv: kv[1], reverse=True)
+    ]
+    signals["sources"] = {
+        "connectors": connector_rows,
+        "tableSources": sources_by_table,
+        "countDistinct": len([r for r in connector_rows if r.get("name") != "Unknown"]),
+        "multipleSources": len([r for r in connector_rows if r.get("name") != "Unknown"]) > 1,
     }
     signals["naming"] = {
         "tableStyles": style_counts,

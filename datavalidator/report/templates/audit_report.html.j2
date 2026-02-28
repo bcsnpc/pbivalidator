@@ -2,103 +2,220 @@
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Audit Report</title>
+  <title>DataValidator Report</title>
   <style>
-    body { font-family: Segoe UI, Arial, sans-serif; margin: 20px; }
-    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
-    .sev-HIGH { border-left: 6px solid #d33; }
-    .sev-MED { border-left: 6px solid #e6a400; }
-    .sev-LOW { border-left: 6px solid #2a7; }
-    .sev-INFO { border-left: 6px solid #6aa0ff; }
-    pre { background: #f6f6f6; padding: 10px; border-radius: 8px; overflow: auto; }
-    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
-    details { margin: 8px 0; }
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --ink: #17212b;
+      --muted: #5b6672;
+      --line: #d9e0e6;
+      --hi: #b3261e;
+      --med: #b7791f;
+      --low: #20744a;
+      --info: #1f5fa8;
+      --accent1: #1f6f8b;
+      --accent2: #2f8f9d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: radial-gradient(circle at top right, #dfe8ef 0%, var(--bg) 40%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+    }
+    .hero {
+      background: linear-gradient(110deg, var(--accent1), var(--accent2));
+      color: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 24px rgba(31, 111, 139, 0.22);
+    }
+    .hero h1 { margin: 0 0 8px 0; font-size: 28px; }
+    .hero p { margin: 0; opacity: 0.96; }
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      margin-bottom: 14px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi .value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    }
+    .card h2 { margin: 0 0 10px 0; font-size: 18px; }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--line);
+      background: #f9fbfc;
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin: 0 6px 6px 0;
+      font-size: 12px;
+    }
+
+    .sev-HIGH { border-left: 6px solid var(--hi); }
+    .sev-MED { border-left: 6px solid var(--med); }
+    .sev-LOW { border-left: 6px solid var(--low); }
+    .sev-INFO { border-left: 6px solid var(--info); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+
+    pre {
+      background: #f2f5f8;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 8px 0;
+    }
+    code { background: #f2f5f8; border-radius: 4px; padding: 1px 5px; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; }
   </style>
 </head>
 <body>
 
-<h1>Audit Report</h1>
-<p><b>Project:</b> {{ inventory.project.name if inventory.project else "?" }} | <b>Root:</b> {{ (inventory.project.rootDir if inventory.project and inventory.project.rootDir is defined else inventory.rootDir) }}</p>
+{% set high = findings | selectattr("severity","equalto","HIGH") | list | length %}
+{% set med = findings | selectattr("severity","equalto","MED") | list | length %}
+{% set low = findings | selectattr("severity","equalto","LOW") | list | length %}
+{% set info = findings | selectattr("severity","equalto","INFO") | list | length %}
 
-<h2>Model</h2>
-<div class="card">
-  <p><b>Tables:</b> {{ inventory.model.tablesCount if inventory.model else "?" }}</p>
-  <p><b>Relationships:</b> {{ (inventory.model.relationships.count if inventory.model and inventory.model.relationships else "?") }}</p>
+<div class="hero">
+  <h1>DataValidator Audit Report</h1>
+  <p><b>Project:</b> {{ inventory.project.name if inventory.project else "?" }} | <b>Root:</b> {{ inventory.project.rootDir if inventory.project and inventory.project.rootDir is defined else inventory.rootDir }}</p>
 </div>
 
-<h2>Power Query</h2>
+<div class="grid">
+  <div class="kpi"><div class="label">Findings</div><div class="value">{{ findings|length }}</div></div>
+  <div class="kpi"><div class="label">High</div><div class="value">{{ high }}</div></div>
+  <div class="kpi"><div class="label">Med</div><div class="value">{{ med }}</div></div>
+  <div class="kpi"><div class="label">Low</div><div class="value">{{ low }}</div></div>
+  <div class="kpi"><div class="label">Info</div><div class="value">{{ info }}</div></div>
+  <div class="kpi"><div class="label">PQ Items</div><div class="value">{{ (signals.powerQuery.count if signals.powerQuery else 0) }}</div></div>
+</div>
+
 <div class="card">
-  <p><b>Extracted PQ items:</b> {{ inventory.powerQuery.count if inventory.powerQuery else "0" }}</p>
-  <p><b>Incremental readiness heuristic:</b>
-    {% if signals.incremental and signals.incremental.hasRangeParamsOrRefs %} Detected {% else %} Not detected {% endif %}
-  </p>
-  <p><b>Param names:</b> {{ (signals.parameters.names | join(", ")) if signals.parameters and signals.parameters.names else "None" }}</p>
+  <h2>Data Sources</h2>
+  {% if signals.sources and signals.sources.connectors %}
+    {% for c in signals.sources.connectors %}
+      <span class="badge">{{ c.name }} ({{ c.count }})</span>
+    {% endfor %}
+    <p><b>Multiple sources used:</b> {{ "Yes" if signals.sources.multipleSources else "No" }}</p>
+    <details>
+      <summary><b>Sources by table</b></summary>
+      <table>
+        <thead><tr><th>Table</th><th>Sources</th></tr></thead>
+        <tbody>
+          {% for row in (signals.sources.tableSources or []) %}
+          <tr>
+            <td>{{ row.table }}</td>
+            <td>{{ row.sources | join(", ") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  {% else %}
+    <p>No source signatures detected from extracted M snippets.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Power Query Snapshot</h2>
+  <p><b>Incremental refresh status:</b> {% if signals.incremental and signals.incremental.hasRangeParamsOrRefs %}Range parameters/references detected{% else %}Not configured (optional){% endif %}</p>
+  <p><b>Parameter names:</b> {{ (signals.parameters.names | join(", ")) if signals.parameters and signals.parameters.names else "None" }}</p>
   <p><b>Hardcoded source hits:</b> {{ signals.hardcoding.count if signals.hardcoding else 0 }}</p>
 
   <details>
     <summary><b>Top folding breakers</b></summary>
-    <ul>
-      {% for b in (signals.powerQuery.topFoldingBreakers if signals.powerQuery and signals.powerQuery.topFoldingBreakers else []) %}
+    {% if signals.powerQuery and signals.powerQuery.topFoldingBreakers %}
+      <ul>
+      {% for b in signals.powerQuery.topFoldingBreakers %}
         <li>{{ b.pattern }} ({{ b.count }})</li>
       {% endfor %}
-    </ul>
+      </ul>
+    {% else %}
+      <p>No breaker patterns detected.</p>
+    {% endif %}
   </details>
 
   <details>
-    <summary><b>Source parameterization coverage</b></summary>
-    <ul>
-      {% for s in (signals.hardcoding.sourceCoverage if signals.hardcoding and signals.hardcoding.sourceCoverage else [])[:30] %}
-        <li>{{ s.table }} - {{ s.status }}</li>
+    <summary><b>Parameterization coverage</b></summary>
+    <table>
+      <thead><tr><th>Table</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for s in (signals.hardcoding.sourceCoverage if signals.hardcoding and signals.hardcoding.sourceCoverage else []) %}
+        <tr><td>{{ s.table }}</td><td>{{ s.status }}</td></tr>
       {% endfor %}
-    </ul>
-  </details>
-
-  <details>
-    <summary><b>Extracted M snippets (sample)</b></summary>
-    {% for p in (inventory.powerQuery.queries if inventory.powerQuery and inventory.powerQuery.queries else [])[:6] %}
-      <div style="margin-top:10px">
-        <div><b>{{ p.table }}</b></div>
-        <div><code>{{ p.path }}</code></div>
-        <div><i>nativeQuery={{ p.isNativeQuery }}, containsSQL={{ p.containsSQL }}, confidence={{ p.confidence }}</i></div>
-        <pre>{{ p.mSnippet }}</pre>
-      </div>
-    {% endfor %}
+      </tbody>
+    </table>
   </details>
 </div>
 
-<h2>Naming Convention</h2>
 <div class="card">
-  <p><b>Dominant table style:</b> {{ signals.naming.dominantTableStyle if signals.naming else "Unknown" }}</p>
-  <p><b>Distribution:</b> {{ signals.naming.tableStyles if signals.naming else {} }}</p>
+  <h2>Naming Convention</h2>
+  <p><b>Dominant style:</b> {{ signals.naming.dominantTableStyle if signals.naming else "Unknown" }}</p>
+  <p><b>Coverage:</b> {{ ("%.0f%%"|format((signals.naming.dominantCoverage or 0) * 100)) if signals.naming else "0%" }}</p>
+  {% if signals.naming and signals.naming.tableStyles %}
+    {% for name, count in signals.naming.tableStyles.items() %}
+      <span class="badge">{{ name }}: {{ count }}</span>
+    {% endfor %}
+  {% endif %}
   <details>
-    <summary><b>Outlier table names</b></summary>
+    <summary><b>Outliers</b></summary>
     <ul>
       {% for t in (signals.naming.outlierTables if signals.naming and signals.naming.outlierTables else []) %}
-        <li>{{ t }}</li>
+      <li>{{ t }}</li>
       {% endfor %}
     </ul>
   </details>
 </div>
 
-<h2>Findings (all)</h2>
-{% for f in findings %}
-  <div class="card sev-{{ f.severity }}">
-    <div><b>[{{ f.severity }}]</b> {{ f.id }} - {{ f.title }}</div>
-    <p>{{ f.message }}</p>
-    <p><b>Recommendation:</b> {{ f.recommendation }}</p>
-    {% if f.evidence %}
-    <details>
-      <summary><b>Evidence</b></summary>
-      <pre>{{ f.evidence | tojson(indent=2) }}</pre>
-    </details>
-    {% endif %}
-  </div>
-{% endfor %}
+<div class="card">
+  <h2>Findings (All)</h2>
+  {% if findings|length == 0 %}
+    <p>No findings generated.</p>
+  {% endif %}
+  {% for f in findings %}
+    <div class="card sev-{{ f.severity }}">
+      <div><b>[{{ f.severity }}]</b> {{ f.id }} - {{ f.title }}</div>
+      <p>{{ f.message }}</p>
+      <p><b>Recommendation:</b> {{ f.recommendation }}</p>
+      {% if f.evidence %}
+      <details>
+        <summary><b>Evidence</b></summary>
+        <pre>{{ f.evidence | tojson(indent=2) }}</pre>
+      </details>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
 
 {% if signals.ai and signals.ai.powerQuery %}
   {% set ai = signals.ai.powerQuery %}
-  <h2>AI Review</h2>
   <div class="card">
+    <h2>AI Review</h2>
     <p><b>Summary:</b> {{ ai.summary }}</p>
 
     <details open>
@@ -107,8 +224,7 @@
         {% for f in (ai.findings if ai.findings is defined else []) %}
           <li>
             <b>[{{ f.severity }}]</b> {{ f.title }}<br/>
-            <i>Why it matters:</i> {{ f.why_it_matters }}<br/>
-            <i>Evidence:</i>
+            <i>Why it matters:</i> {{ f.why_it_matters }}
             <pre>{{ f.evidence | tojson(indent=2) }}</pre>
             <i>Fix steps:</i>
             <ul>
@@ -122,7 +238,7 @@
     </details>
 
     <details>
-      <summary><b>Quick wins</b></summary>
+      <summary><b>Quick Wins</b></summary>
       <ul>
         {% for w in (ai.quick_wins if ai.quick_wins is defined else []) %}
           <li>{{ w }}</li>
@@ -131,7 +247,7 @@
     </details>
 
     <details>
-      <summary><b>Questions for dev</b></summary>
+      <summary><b>Questions for Dev</b></summary>
       <ul>
         {% for q in (ai.questions_for_dev if ai.questions_for_dev is defined else []) %}
           <li>{{ q }}</li>
@@ -141,7 +257,7 @@
 
     {% if ai.raw is defined %}
       <details>
-        <summary><b>Raw AI output</b></summary>
+        <summary><b>Raw AI Output</b></summary>
         <pre>{{ ai.raw }}</pre>
       </details>
     {% endif %}

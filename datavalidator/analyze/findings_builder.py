@@ -16,6 +16,7 @@ def build_findings(inventory: Dict[str, Any]) -> Dict[str, Any]:
     param_names = (signals.get("parameters") or {}).get("names", [])
     hardcoding = signals.get("hardcoding") or {}
     naming = signals.get("naming") or {}
+    sources = signals.get("sources") or {}
     folding = pq.get("foldingByTable") or []
 
     # Findings QA can action
@@ -142,6 +143,17 @@ def build_findings(inventory: Dict[str, Any]) -> Dict[str, Any]:
                 "styleDistribution": naming.get("tableStyles", {}),
                 "dominantCoverage": coverage_ratio,
             }
+        })
+
+    if sources.get("multipleSources"):
+        findings.append({
+            "id": "MD010",
+            "severity": "INFO",
+            "category": "Model",
+            "title": "Multiple source systems detected",
+            "message": f"Detected {sources.get('countDistinct', 0)} distinct source types across extracted queries.",
+            "recommendation": "Validate governance boundaries, credentials, and refresh sequencing for multi-source models.",
+            "evidence": {"connectors": sources.get("connectors", [])}
         })
 
     return {"signals": signals, "findings": findings}

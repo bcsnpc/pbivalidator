@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 import typer
 from dotenv import load_dotenv
@@ -26,8 +27,14 @@ def run(
     load_dotenv(override=False)
 
     out.mkdir(parents=True, exist_ok=True)
-    run_pipeline(project_path=project, out_dir=out, run_ai=ai)
-    typer.echo(f"Report generated: {out / 'report.html'}")
+
+    project_name = project.stem if project.is_file() else project.name
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = out / f"{project_name}_{ts}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    run_pipeline(project_path=project, out_dir=run_dir, run_ai=ai)
+    typer.echo(f"Report generated: {run_dir / 'report.html'}")
 
 def main():
     app()

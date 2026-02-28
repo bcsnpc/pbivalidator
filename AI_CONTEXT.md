@@ -1,102 +1,87 @@
 ﻿# AI Context
 
 ## Purpose
-DataValidator is a PBIP quality scanner focused on Power Query and semantic-model governance. It reads PBIP artifacts, computes deterministic signals/findings, optionally enriches findings with AI, and generates JSON + HTML outputs for QA and engineering teams.
+DataValidator is a PBIP quality scanner for model governance and Power Query review. It extracts PBIP metadata, builds deterministic signals/findings, optionally adds AI explanation, and renders an HTML report.
 
-## Core Capabilities
-- PBIP inventory extraction
-- Power Query heuristic analysis
-  - Folding risk indicators
-  - Hardcoded source hints
-  - Parameterization coverage
-  - Transformation complexity hints
-- Naming consistency analysis
-  - Dominant table naming convention inference
-  - Outlier detection
-- Incremental refresh readiness status
-  - Informational only (optional feature)
-  - Guidance if folding blockers exist
-- AI summary layer
-  - Consolidated summary
-  - AI findings + quick wins
-  - Questions for developers
+## Primary Outcomes
+- Practical QA findings from PBIP artifacts
+- Visibility into source systems and multi-source models
+- Actionable recommendations for folding, parameterization, naming, and refresh readiness
+- Developer-facing AI summary and questions
 
 ## Runtime Flow
-1. CLI receives PBIP path and output directory.
-2. Inventory is built from PBIP files.
-3. Signals are derived from inventory.
-4. Findings are generated from signals.
-5. Optional AI review uses signals + findings.
-6. HTML report and JSON artifacts are written to output.
+1. CLI receives PBIP path and output root path.
+2. CLI creates a unique timestamped run folder.
+3. Inventory extraction reads PBIP report/model/PQ artifacts.
+4. Signals computation normalizes metrics and diagnostics.
+5. Findings builder produces deterministic findings.
+6. Optional AI layer summarizes and prioritizes findings.
+7. Report renderer writes `report.html` + JSON outputs.
 
 ## Technical Stack
-- Language: Python
-- CLI: Typer
-- Templating: Jinja2
-- Env config: python-dotenv
-- AI: OpenAI Responses API
+- Python
+- Typer (CLI)
+- Jinja2 (report templating)
+- python-dotenv (`.env` support)
+- OpenAI Responses API (optional AI mode)
 
-## Key Folders
+## Folder Structure
 - `datavalidator/cli.py`
-  - user entrypoint
+  - entrypoint, env load, unique run folder creation
 - `datavalidator/pipeline.py`
-  - orchestration
+  - orchestration of extraction/analyze/report
 - `datavalidator/extract/`
-  - PBIP/report/model/PQ extraction
+  - PBIP parsing and semantic-model/PQ extraction
 - `datavalidator/analyze/`
-  - signals + findings logic
+  - signal generation and deterministic findings
 - `datavalidator/ai/`
-  - AI summarization
+  - AI summary generation
 - `datavalidator/report/`
-  - report rendering and templates
+  - HTML rendering and template
 - `output/`
-  - generated artifacts
+  - run artifacts (timestamped subfolders)
+
+## Signal Domains
+- `powerQuery`
+  - extracted M items, fold-breaker hints, heavy step counts
+- `hardcoding`
+  - hardcoded/literal source hints + parameterization coverage
+- `sources`
+  - connector/source inventory by query/table
+  - distinct source count and multiple-source flag
+- `naming`
+  - dominant table naming style + outlier list
+- `incremental`
+  - presence of RangeStart/RangeEnd references (informational)
 
 ## Output Contract
+Per run folder:
 - `inventory.json`
-  - extracted project details
 - `signals.json`
-  - normalized analytic signals
 - `findings.json`
-  - deterministic findings
-- `ai_pq.json`
-  - AI layer output (when enabled)
 - `report.html`
-  - human-readable consolidated report
+- `ai_pq.json` (if `--ai`)
 
-## Detection Model Notes
-- Folding detection is heuristic, not a true engine-level fold verifier.
-- Hardcoding detection is pattern-based and best-effort.
-- Table naming convention is inferred statistically from current model names.
-- Calculated and measures-only tables are excluded from table-based naming/folding findings.
+## User Operation (EXE)
+1. Open PowerShell.
+2. `cd` into folder where `datavalidator.exe` is present.
+3. Run:
+   - `.\datavalidator.exe -p "D:\path\to\PBIP" -o ".\output"`
+4. Open generated `report.html` from the run folder.
 
-## How Users Operate the Tool
-For EXE users:
+AI mode:
+- add `.env` next to exe with `OPENAI_API_KEY`
+- run with `--ai`
 
-```powershell
-.\datavalidator.exe -p "D:\path\to\PBIP" -o ".\output"
-```
+## Current Design Choices
+- Incremental refresh is optional and reported as informational.
+- Calculated/measures-only helper tables are excluded from table-based naming and folding findings.
+- Source detection is pattern-based and best-effort.
 
-With AI:
-
-```powershell
-.\datavalidator.exe -p "D:\path\to\PBIP" -o ".\output" --ai
-```
-
-Then open:
-- `output\report.html`
-
-## Future Enhancement Opportunities
-- True folding validation using source-aware diagnostics.
-- Configurable rule packs and thresholds via YAML.
-- Dedicated naming policy profiles (snake_case, PascalCase, dim_/fact_ standards).
-- DAX measure quality checks and anti-pattern detection.
-- Relationship-level model design checks (cardinality/filter direction quality rules).
-- Test harness with sample PBIP fixtures and golden outputs.
-- CI/CD package pipeline for signed EXE releases.
-- Optional GUI wrapper for non-technical users.
-
-## Productization Notes
-- Recommended distribution for business users: Windows `datavalidator.exe`.
-- Keep release artifacts versioned and publish a changelog.
-- Preserve backward compatibility of JSON keys where possible.
+## Future Enhancements
+- Add configurable policy profiles (severity thresholds, naming standards).
+- Add stronger source-specific folding diagnostics.
+- Add DAX quality checks (measure anti-patterns, complexity risk).
+- Add machine-readable schema versioning for JSON outputs.
+- Add CI release pipeline to build and publish signed exe artifacts.
+- Add optional UI shell for non-technical users.
